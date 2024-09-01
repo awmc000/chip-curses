@@ -5,7 +5,6 @@ project(curse-chip VERSION 0.1)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-
 include_directories(include)
 
 add_executable(cursechip src/main.cpp src/chip8.cpp)
