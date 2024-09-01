@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(include)
 
 add_executable(cursechip src/main.cpp src/chip8.cpp)
+target_link_libraries(cursechip -lncurses)
 
 # find_package(Catch2 3 REQUIRED)
 # add_executable(chiptest src/chip8.cpp test/test.cpp)
