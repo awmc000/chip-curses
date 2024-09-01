@@ -22,28 +22,28 @@ int main (void) {
 
     cx = 0;
     cy = 0;
-    cw = CHIP8_SCREEN_WIDTH;
-    ch = CHIP8_SCREEN_HEIGHT;
+    cw = CHIP8_SCREEN_WIDTH + 2;
+    ch = CHIP8_SCREEN_HEIGHT + 2;
 
     // Create display window
-    chip_display = newwin(ch, cw, cx, cy);
+    chip_display = newwin(ch, cw, cy, cx);
     box(chip_display, 0, 0);
-
     wrefresh(chip_display);
 
     // Set up sidebar window
     WINDOW * chip_sidebar;
     int sx, sy, sw, sh;
-    sx = CHIP8_SCREEN_WIDTH + 1;
+    sx = CHIP8_SCREEN_WIDTH + 2;
     sy = 0;
-    sw = 5;
-    sh = 5;
+    sw = 12;
+    sh = CHIP8_SCREEN_HEIGHT + 2;
 
     // Create sidebar window
-    chip_sidebar = newwin(sh, sw, sx, sy);
+    chip_sidebar = newwin(sh, sw, sy, sx);
     box(chip_sidebar, 0, 0);
-
     wrefresh(chip_sidebar);
+
+    // Both created, update parent window
     refresh();
 
     while (getch() != KEY_UP) {
