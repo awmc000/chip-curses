@@ -1,3 +1,0 @@
-/home/alex/Programming/C++/chip-curses/CMakeFiles/cursechip.dir
-/home/alex/Programming/C++/chip-curses/CMakeFiles/edit_cache.dir
-/home/alex/Programming/C++/chip-curses/CMakeFiles/rebuild_cache.dir
