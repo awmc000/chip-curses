@@ -1,6 +1,9 @@
 #include "chip8.hpp"
 #include "ncurses.h"
 #include <locale.h>
+#include <fstream>
+#include <iostream>
+#include <string>
 
 #define FRONTEND_SCREEN_WIDTH       ((CHIP8_SCREEN_WIDTH))
 #define FRONTEND_SCREEN_HEIGHT      ((CHIP8_SCREEN_HEIGHT / 2))
@@ -98,6 +101,17 @@ void write_starting_info(chip_frontend &fe)
     wrefresh(fe.helpbar_win);
 }
 
+byte * load_file_buf(const std::string &filename) {
+	byte * fileBuf = new byte[CHIP8_ROM_BYTES];
+	std::ifstream in(filename, std::ios_base::in | std::ios_base::binary);
+
+	do {
+		in.read((char *) fileBuf, CHIP8_ROM_BYTES);
+	} while (in.gcount() > 0);
+
+	return fileBuf;
+}
+
 int main(void)
 {
 
@@ -126,8 +140,30 @@ int main(void)
     // Both created, update parent window
     refresh();
 
+    // Load file
+    fe.sys->load(load_file_buf("chip8logo.ch8"));
+
+    // Main loop
     while (getch() != 27) {
-        ;;
+        // Cycle
+        fe.sys->cycle();
+
+        // Check for input
+
+        // If sound flag set, make a sound and unset
+        if (fe.sys->sound) {
+            printf("\07");
+            fe.sys->sound = false;
+        }
+
+        // If draw flag set, draw and unset
+        if (fe.sys) {
+            draw_display(&fe);
+            fe.sys->draw = false;
+
+            wrefresh(fe.display_win);
+            refresh();
+        }
     }
 
     endwin();
