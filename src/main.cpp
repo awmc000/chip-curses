@@ -59,7 +59,7 @@ void draw_display(struct chip_frontend * fe) {
                 mvwprintw(display, (y/2)+1, x+1, FRONTEND_PIX_BTM);
             }
             else {
-                mvwprintw(display, (y/2)+1, x+1, "░");
+                mvwprintw(display, (y/2)+1, x+1, " ");
             }
         }
     }
@@ -101,6 +101,25 @@ void write_starting_info(chip_frontend &fe)
     wrefresh(fe.helpbar_win);
 }
 
+void write_debug_info(chip_frontend &fe) {
+    wattron(fe.sidebar_win, COLOR_PAIR(2));
+    mvwprintw(fe.sidebar_win, 1, 1, "PC: %x", fe.sys->programCounter);
+    
+    // Print 4 rows of variable register contents
+    for (int i = 0; i <= 12; i += 4) {
+        mvwprintw(
+            fe.sidebar_win, 2 + (i / 4), 1, "V%x: %02x %02x %02x %02x", 
+            i,
+            fe.sys->variableRegisters[i+0], fe.sys->variableRegisters[i+1],
+            fe.sys->variableRegisters[i+2], fe.sys->variableRegisters[i+3]
+        );
+    }
+    mvwprintw(fe.sidebar_win, 6, 1, "IR: %04x SP: %02x", fe.sys->indexRegister, fe.sys->stackPointer);
+    wattroff(fe.sidebar_win, COLOR_PAIR(2));
+    refresh();
+    wrefresh(fe.sidebar_win);
+}
+
 byte * load_file_buf(const std::string &filename) {
 	byte * fileBuf = new byte[CHIP8_ROM_BYTES];
 	std::ifstream in(filename, std::ios_base::in | std::ios_base::binary);
@@ -129,6 +148,17 @@ int main(void)
     keypad(stdscr, TRUE);
     noecho();
     nodelay(stdscr, TRUE);
+    
+    // Set up terminal colours
+    if (has_colors() == FALSE) {
+        endwin();
+		printf("Your terminal does not support color\n");
+		exit(1);
+	}
+
+    // start_color();
+    init_pair(1, COLOR_BLUE, COLOR_BLACK);
+    init_pair(2, COLOR_BLACK, COLOR_GREEN);
 
     refresh();
 
@@ -150,6 +180,9 @@ int main(void)
 
         // Check for input
 
+        // Write info to debug area
+        write_debug_info(fe);
+
         // If sound flag set, make a sound and unset
         if (fe.sys->sound) {
             printf("\07");
@@ -157,13 +190,13 @@ int main(void)
         }
 
         // If draw flag set, draw and unset
-        if (fe.sys) {
+        if (fe.sys->draw) {
             draw_display(&fe);
             fe.sys->draw = false;
-
-            wrefresh(fe.display_win);
             refresh();
+            wrefresh(fe.display_win);
         }
+        
     }
 
     endwin();
