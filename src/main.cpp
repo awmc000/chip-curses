@@ -86,6 +86,18 @@ void setup_windows(struct chip_frontend * fe)
         FRONTEND_HELPBAR_HEIGHT + 2);
 }
 
+void write_starting_info(chip_frontend &fe)
+{
+    mvwprintw(fe.display_win, 0, FRONTEND_SCREEN_WIDTH / 2 - 5 + 1, "CURSEDCHIP");
+    wrefresh(fe.display_win);
+
+    mvwprintw(fe.sidebar_win, 0, 3, "DEBUG & INFO");
+    wrefresh(fe.sidebar_win);
+
+    mvwprintw(fe.helpbar_win, 1, 1, "QUIT: [Esc] PAUSE: [Space]");
+    wrefresh(fe.helpbar_win);
+}
+
 int main(void)
 {
 
@@ -109,14 +121,7 @@ int main(void)
     setup_windows(&fe);
 
     // Write some title cards
-    mvwprintw(fe.display_win, 0, FRONTEND_SCREEN_WIDTH /2 - 5 + 1, "CURSEDCHIP");
-    wrefresh(fe.display_win);
-
-    mvwprintw(fe.sidebar_win, 0, 3, "DEBUG & INFO");
-    wrefresh(fe.sidebar_win);
-
-    mvwprintw(fe.helpbar_win, 1, 1, "QUIT: Esc PAUSE: Space");
-    wrefresh(fe.helpbar_win);
+    write_starting_info(fe);
 
     // Both created, update parent window
     refresh();
@@ -129,3 +134,4 @@ int main(void)
 
     return 0;
 }
+
