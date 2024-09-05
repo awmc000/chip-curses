@@ -6,6 +6,7 @@
 #include <string>
 #include <ctime>
 #include <cctype>
+#include <iostream>
 
 #define FRONTEND_SCREEN_WIDTH       ((CHIP8_SCREEN_WIDTH))
 #define FRONTEND_SCREEN_HEIGHT      ((CHIP8_SCREEN_HEIGHT / 2))
@@ -103,7 +104,7 @@ void write_starting_info(chip_frontend &fe)
     mvwprintw(fe.sidebar_win, 0, 3, "DEBUG & INFO");
     wrefresh(fe.sidebar_win);
 
-    mvwprintw(fe.helpbar_win, 1, 1, "QUIT: [Esc] PLAY/PAUSE: [.]");
+    mvwprintw(fe.helpbar_win, 1, 1, "QUIT: [Esc] PLAY/PAUSE: [.] STEP: [,]");
     wrefresh(fe.helpbar_win);
 }
 
@@ -203,8 +204,13 @@ timespec timespec_sub(timespec start, timespec end) {
 };
 
 
-int main(void)
+int main(int argc, char ** argv)
 {
+
+    if (argc < 2) {
+        std::cout << "Usage: ./chipcurses filename.rom" << std::endl;
+        exit(1);
+    }
 
     // Set locale for unicode
     setlocale(LC_ALL, "");
@@ -244,7 +250,8 @@ int main(void)
     refresh();
 
     // Load file
-    fe.sys->load(load_file_buf("particle.ch8"));
+    std::string filename = argv[1];
+    fe.sys->load(load_file_buf(filename));
     
     // Main loop
     bool waiting = false;
