@@ -4,6 +4,8 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <ctime>
+#include <cctype>
 
 #define FRONTEND_SCREEN_WIDTH       ((CHIP8_SCREEN_WIDTH))
 #define FRONTEND_SCREEN_HEIGHT      ((CHIP8_SCREEN_HEIGHT / 2))
@@ -24,11 +26,15 @@
 #define FRONTEND_PIX_BTM            "▄"
 #define FRONTEND_PIX_BOTH           "█"
 
+#define NS_IN_SECOND                1000000000
+#define CURSE_CHIP_FRAMERATE        20
+
 struct chip_frontend {
     Chip8 * sys;
     WINDOW * display_win;
     WINDOW * sidebar_win;
     WINDOW * helpbar_win;
+    bool paused;
 };
 
 WINDOW * create_window(int x, int y, int w, int h) {
@@ -97,13 +103,13 @@ void write_starting_info(chip_frontend &fe)
     mvwprintw(fe.sidebar_win, 0, 3, "DEBUG & INFO");
     wrefresh(fe.sidebar_win);
 
-    mvwprintw(fe.helpbar_win, 1, 1, "QUIT: [Esc] PAUSE: [Space]");
+    mvwprintw(fe.helpbar_win, 1, 1, "QUIT: [Esc] PLAY/PAUSE: [.]");
     wrefresh(fe.helpbar_win);
 }
 
 void write_debug_info(chip_frontend &fe) {
     wattron(fe.sidebar_win, COLOR_PAIR(2));
-    mvwprintw(fe.sidebar_win, 1, 1, "PC: %x", fe.sys->programCounter);
+    mvwprintw(fe.sidebar_win, 1, 1, "PC: %04x", fe.sys->programCounter);
     
     // Print 4 rows of variable register contents
     for (int i = 0; i <= 12; i += 4) {
@@ -120,6 +126,57 @@ void write_debug_info(chip_frontend &fe) {
     wrefresh(fe.sidebar_win);
 }
 
+
+void run_cycle(chip_frontend &fe, timespec &last_frame, timespec &now)
+{
+    // Cycle
+    fe.sys->cycle();
+
+    // Write info to debug area
+    write_debug_info(fe);
+
+    // If sound flag set, make a sound and unset
+    if (fe.sys->sound)
+    {
+        printf("\07");
+        fe.sys->sound = false;
+    }
+
+    // If draw flag set, draw and unset
+    if (fe.sys->draw)
+    {
+        draw_display(&fe);
+        fe.sys->draw = false;
+        refresh();
+        wrefresh(fe.display_win);
+        if (last_frame.tv_nsec != -1) {
+            last_frame.tv_nsec = now.tv_nsec;
+            last_frame.tv_sec = now.tv_sec;
+        }
+    }
+}
+
+char handle_input(chip_frontend &fe) {
+    char ch = getch();
+    if (isalnum(ch)) {
+        mvwprintw(fe.helpbar_win, 1, 40, "GOT KEY: %c", ch);
+        wrefresh(fe.helpbar_win);
+        refresh();
+    }
+
+    if (ch == '.') {
+        fe.paused ^= 1;
+    }
+
+    if (fe.paused && ch == ',') {
+        fe.sys->cycle();
+        timespec stupid_hack {-1, -1};
+        run_cycle(fe, stupid_hack, stupid_hack);
+    }
+
+    return ch;
+}
+
 byte * load_file_buf(const std::string &filename) {
 	byte * fileBuf = new byte[CHIP8_ROM_BYTES];
 	std::ifstream in(filename, std::ios_base::in | std::ios_base::binary);
@@ -131,6 +188,21 @@ byte * load_file_buf(const std::string &filename) {
 	return fileBuf;
 }
 
+timespec timespec_sub(timespec start, timespec end) {
+    timespec temp;
+    
+    if ((end.tv_nsec-start.tv_nsec)<0) {
+        temp.tv_sec  = end.tv_sec-start.tv_sec-1;
+        temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+    } else {
+        temp.tv_sec  = end.tv_sec-start.tv_sec;
+        temp.tv_nsec = end.tv_nsec-start.tv_nsec;
+    }
+    
+    return temp;
+};
+
+
 int main(void)
 {
 
@@ -139,6 +211,7 @@ int main(void)
 
     // Set up backend
     struct chip_frontend fe;
+    fe.paused = true;
     fe.sys = new Chip8();
     fe.sys->reset();
 
@@ -171,31 +244,27 @@ int main(void)
     refresh();
 
     // Load file
-    fe.sys->load(load_file_buf("chip8logo.ch8"));
-
+    fe.sys->load(load_file_buf("particle.ch8"));
+    
     // Main loop
-    while (getch() != 27) {
-        // Cycle
-        fe.sys->cycle();
+    bool waiting = false;
+    timespec last_frame;
+    clock_gettime(CLOCK_REALTIME, &last_frame);
+    timespec now;
+    
+    while ((handle_input(fe) != 27)) {
+        
+        if (fe.paused) {
+        
+        } else {
+            // Wait if it's not time for the next frame!
+            clock_gettime(CLOCK_REALTIME, &now);
 
-        // Check for input
-
-        // Write info to debug area
-        write_debug_info(fe);
-
-        // If sound flag set, make a sound and unset
-        if (fe.sys->sound) {
-            printf("\07");
-            fe.sys->sound = false;
+            if (timespec_sub(last_frame, now).tv_nsec > (1000000000 / CURSE_CHIP_FRAMERATE)) {
+                run_cycle(fe, last_frame, now);
+            }
         }
 
-        // If draw flag set, draw and unset
-        if (fe.sys->draw) {
-            draw_display(&fe);
-            fe.sys->draw = false;
-            refresh();
-            wrefresh(fe.display_win);
-        }
         
     }
 
@@ -203,4 +272,3 @@ int main(void)
 
     return 0;
 }
-
