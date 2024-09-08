@@ -36,6 +36,7 @@ struct chip_frontend {
     WINDOW * sidebar_win;
     WINDOW * helpbar_win;
     bool paused;
+    int key_time_left[16];
 };
 
 WINDOW * create_window(int x, int y, int w, int h) {
@@ -122,6 +123,14 @@ void write_debug_info(chip_frontend &fe) {
         );
     }
     mvwprintw(fe.sidebar_win, 6, 1, "IR: %04x SP: %02x", fe.sys->indexRegister, fe.sys->stackPointer);
+    mvwprintw(fe.sidebar_win, 7, 1, "KEY: %01d%01d%01d%01d%01d%01d%01d%01d",
+        fe.sys->keyState[0], fe.sys->keyState[1], fe.sys->keyState[2], fe.sys->keyState[3],
+        fe.sys->keyState[4], fe.sys->keyState[5], fe.sys->keyState[6], fe.sys->keyState[7]
+    );
+    mvwprintw(fe.sidebar_win, 8, 1, "     %01d%01d%01d%01d%01d%01d%01d%01d",
+        fe.sys->keyState[8], fe.sys->keyState[9], fe.sys->keyState[10], fe.sys->keyState[11],
+        fe.sys->keyState[12], fe.sys->keyState[13], fe.sys->keyState[14], fe.sys->keyState[15]
+    );
     wattroff(fe.sidebar_win, COLOR_PAIR(2));
     refresh();
     wrefresh(fe.sidebar_win);
@@ -157,10 +166,60 @@ void run_cycle(chip_frontend &fe, timespec &last_frame, timespec &now)
     }
 }
 
+int map_to_keypad(char inputc) {
+    switch (inputc) {
+        // Row 1: 1234 == 123C
+        case '1':
+        case '2':
+        case '3':
+            return inputc - '0';
+            break;
+        case '4':       return 0xC;     break;
+        
+        // Row 2: QWER == 456D
+        case 'Q':       return 0x4;     break;
+        case 'W':       return 0x5;     break;
+        case 'E':       return 0x6;     break;
+        case 'R':       return 0xD;     break;
+        
+        // Row 3: ASDF == 789E
+        case 'A':       return 0x7;     break;
+        case 'S':       return 0x8;     break;
+        case 'D':       return 0x9;     break;
+        case 'F':       return 0xE;     break;
+
+        // Row F: ZXCV == A0BF
+        case 'Z':       return 0xA;     break;
+        case 'X':       return 0x0;     break;
+        case 'C':       return 0xB;     break;
+        case 'V':       return 0xF;     break;
+
+    }
+    return -1;
+}
+
 char handle_input(chip_frontend &fe) {
     char ch = getch();
-    if (isalnum(ch)) {
-        mvwprintw(fe.helpbar_win, 1, 40, "GOT KEY: %c", ch);
+    
+    for (int i = 0; i < 16; i++) {
+
+        // Unset backend key state when the timer has gone off        
+        if (fe.key_time_left[i] == 0) {
+            fe.sys->keyState[i] = 0;
+        } else {
+            fe.key_time_left[i]--;
+        }
+    }
+
+    char mapped_key = map_to_keypad(ch);
+    if (mapped_key != -1) {
+        if (fe.sys->blockingForKey) {
+            fe.sys->lastKeyFromBlock = true;
+        }
+        fe.key_time_left[mapped_key] = 1000000;
+        fe.sys->keyState[mapped_key] = 1;
+        fe.sys->lastKey = mapped_key;
+        mvwprintw(fe.helpbar_win, 1, 40, "GOT KEY: %c AS %01x", ch, mapped_key);
         wrefresh(fe.helpbar_win);
         refresh();
     }
